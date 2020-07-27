@@ -1,0 +1,1 @@
+解决线程安全问题，sqlSessionManager 还有另一个方式，那就是使用线程本地变量，不同于每次执行CURD操作都重新获取一个DefaultSqlSession 。 线程本地变量这种方式是一个线程内使用同一个请求，这就大大节省了创建DefaultSqlSession 的时间，并且是线程安全的。
