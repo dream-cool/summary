@@ -1,0 +1,24 @@
+
+
+springboot 在初始化SqlSessionFactory的bean时，
+
+首先SqlSessionFactoryBean.buildSqlSessionFactory()方法将会 在SqlSessionFactory配置的bean中解析其中重要的成员属性。如 typeAliases、plugins、typeHandlersPackage等等，如果配置的bean中已经配置了这些关键属性，将逐一解析到Mybatis框架的Configuration对象的成员属性中，对各项配置进行注入。
+
+前面的基本配置注入完成后，如果检测到SqlSessionFactoryBean中mapperLocations不为空，将各项xml的资源配置文件进行解析。通过XMLMapperBuilder.parse()方法逐一去解析每个mapper文件。解析中，先解析mapper节点，然后通过configurationElement详细地解析mapper中的各个Element。如namespace、cache、parameterMap、resultMap、"select|insert|update|delete"等关键Element。解析过程中将通过builderAssistant将其中解析到的数据全部装载到Configuration对象的各个属性中去。如mapperRegistry、typeHandlerRegistry、mappedStatements、resultMaps、parameterMaps中。
+
+其中XMLMapperBuilder.buildStatementFromContext()解析的"select|insert|update|delete"标签最为核心。将通过XMLStatementBuilder.parseStatementNode()逐一解析各个标签节点。同理，解析时将标签的属性(如parameterType、useGeneratedKeys、parameterMap、resultType等)出来。生成MappedStatement.id时，通过，MapperBuilderAssistant.applyCurrentNamespace()对id的namespace进行拼接。最后通过builderAssistant.addMappedStatement()封装成MappedStatement，同时添加configuration对象中。
+
+动态SQL的试下原理。也就是将标签解析生成SqlSource对象的过程。根据XMLScriptBuilder.parseDynamicTags()解析动态标签,TextSqlNode.isDynamic()判断是否是动态SQL。
+
+
+
+注意：
+
+二级缓存cache是在解析mapper时就已经解析完了，并装载到MapperBuilderAssistant.currentCache属性，所以同一namespaces共享同一二级缓存)。
+
+虽然xml中增删改查标签的id只是DAO层的方法名，但作为MappedStatement中的对象id确实完整的namespacne + ‘.’ + id,这也是作为Configuration.mappedStatements的key。这也是为什么在执行时DAO层方法和对应SQL绑定的关键。因为通过DAO层的方法即可知道对应的namespacne + ‘.’ + id，也就可以mappedStatements找到之前解析***mapper.xml生产MappedStatement对象。所以同一namespace下的增删改查标签不可以重复，但不同namespace下的可以重复。
+
+在生成SqlSource的过程中，GenericTokenParser.parse()会将${}的变量注入替换成具体的参数值。
+
+以上就是SqlSessionFactoryBean初始化装载Mybatis中Configuration对象属性的常见流程。当然也可以通过注解或是其他方式装载。实际装载过程中的细节需仔细观看源码流程。
+
